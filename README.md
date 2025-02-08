@@ -1,12 +1,12 @@
 # eepyXR
 
-An overlay to help you sleep in VR, built for Linux and OpenXR runtimes implementing EXTX_overlay
+A Linux OpenXR overlay to help you sleep in VR, built for runtimes implementing EXTX_overlay
 
 - [x] Dim the user's screen
 - [ ] Automatically enable when the user is detected sleep
 - [ ] Automatically disable when the user is detected awake
 - [ ] Custom dim overlay
-- [ ] OSC message on enable/disable
+- [ ] OSC message on enable/disable, and to enable/disable
 
 ## Building
 
