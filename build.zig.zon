@@ -10,6 +10,10 @@
             .url = "git+https://github.com/nothings/stb#5c205738c191bcb0abc65c4febfa9bd25ff35234",
             .hash = "122082911aadaef3c836d3833f7c60386ee1ee46feffb6c54785f784801c32212aaa",
         },
+        .@"known-folders" = .{
+            .url = "git+https://github.com/ziglibs/known-folders#1cceeb70e77dec941a4178160ff6c8d05a74de6f",
+            .hash = "12205f5e7505c96573f6fc5144592ec38942fb0a326d692f9cddc0c7dd38f9028f29",
+        },
     },
     .paths = .{
         "build.zig",

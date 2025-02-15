@@ -3,10 +3,18 @@ const builtin = @import("builtin");
 
 const c = @import("c");
 
+const Config = @import("Config.zig");
 const math = @import("math.zig");
 const xr = @import("xr.zig");
 
 const log = std.log.scoped(.main);
+
+pub const std_options: std.Options = .{
+    .log_level = switch (builtin.mode) {
+        .Debug, .ReleaseSafe => .debug,
+        .ReleaseFast, .ReleaseSmall => .info,
+    },
+};
 
 const Swapchain = struct {
     format: c.SDL_GPUTextureFormat,
@@ -30,6 +38,7 @@ const State = struct {
     gpa: std.mem.Allocator,
     session_data: ?SessionData,
     swapchain: Swapchain,
+    config: Config,
 };
 
 const SessionData = struct {
@@ -44,11 +53,6 @@ const SessionData = struct {
 
 var run: bool = true;
 const run_ptr: *volatile bool = &run;
-
-fn intHandler(dummy: c_int) callconv(.c) void {
-    _ = dummy;
-    run_ptr.* = false;
-}
 
 pub fn main() !void {
     var gpa_impl: std.heap.GeneralPurposeAllocator(.{}) = .init;
@@ -131,11 +135,18 @@ pub fn main() !void {
         .referenceSpaceType = c.XR_REFERENCE_SPACE_TYPE_STAGE,
     }, &stage_space));
 
+    const config: Config = load_config: {
+        var arena: std.heap.ArenaAllocator = .init(gpa);
+        defer arena.deinit();
+
+        break :load_config try .load(arena.allocator());
+    };
+
     const swapchain = create_gpu_resources: {
         const cmdbuf = c.SDL_AcquireGPUCommandBuffer(gpu_device) orelse return error.FailedToAcquireGpuCmdBuf;
         errdefer _ = c.SDL_CancelGPUCommandBuffer(cmdbuf);
 
-        const swapchain = try createSwapchain(gpu_device, session, cmdbuf);
+        const swapchain = try createSwapchain(gpu_device, session, cmdbuf, config);
         errdefer swapchain.deinit(gpu_device);
 
         if (!c.SDL_SubmitGPUCommandBuffer(cmdbuf)) return error.FailedToSubmitGpuWork;
@@ -154,18 +165,51 @@ pub fn main() !void {
         .gpa = gpa,
         .frame_arena_impl = .init(gpa),
         .session_data = null,
+        .config = config,
     };
     defer {
         if (state.session_data) |session_data| session_data.deinit(gpa);
         state.frame_arena_impl.deinit();
     }
 
-    // TODO: make this portable
-    // handle ctrl+c
-    _ = c.signal(c.SIGINT, intHandler);
+    const stdin = std.io.getStdIn();
+    const stdin_handle = stdin.handle;
+    {
+        // Set stdin to nonblocking
+        var o: std.os.linux.O = @bitCast(@as(u32, @intCast(std.os.linux.fcntl(stdin_handle, std.os.linux.F.GETFL, 0))));
+        o.NONBLOCK = true;
+        _ = std.os.linux.fcntl(stdin_handle, std.os.linux.F.SETFL, @as(u32, @bitCast(o)));
+    }
+    const stdin_reader = stdin.reader();
 
+    var frame: usize = 0;
     while (run_ptr.*) {
+        defer {
+            log.debug("Handled frame {d}", .{frame});
+            frame +%= 1;
+        }
+
         defer _ = state.frame_arena_impl.reset(.{ .retain_with_limit = 1024 * 10 });
+
+        var temp_buf: [8]u8 = undefined;
+        const read = stdin_reader.read(&temp_buf) catch |err| handle_read_error: {
+            if (err == std.fs.File.ReadError.WouldBlock) {
+                break :handle_read_error 0;
+            }
+
+            return err;
+        };
+
+        if (read > 0) {
+            switch (state.session_state) {
+                .synchronized, .visible, .focused => {
+                    try xr.handleResult(c.xrRequestExitSession(session));
+                },
+                else => {
+                    break;
+                },
+            }
+        }
 
         const frame_arena = state.frame_arena_impl.allocator();
 
@@ -232,10 +276,9 @@ pub fn main() !void {
     }
 }
 
-fn createSwapchain(gpu_device: *c.SDL_GPUDevice, session: c.XrSession, cmdbuf: *c.SDL_GPUCommandBuffer) !Swapchain {
+fn createSwapchain(gpu_device: *c.SDL_GPUDevice, session: c.XrSession, cmdbuf: *c.SDL_GPUCommandBuffer, config: Config) !Swapchain {
     // this isn't 1x1 to prevent sampling issues, it seems the edges of the swapchain get darker if it's 1x1
     const size = 64;
-    const fade_amount = 0.8;
 
     const swapchain_create_info: c.XrSwapchainCreateInfo = .{
         .type = c.XR_TYPE_SWAPCHAIN_CREATE_INFO,
@@ -273,7 +316,7 @@ fn createSwapchain(gpu_device: *c.SDL_GPUDevice, session: c.XrSession, cmdbuf: *
 
     // Just create an empty render pass to clear the texture
     const render_pass = c.SDL_BeginGPURenderPass(cmdbuf, &.{
-        .clear_color = .{ .a = fade_amount },
+        .clear_color = .{ .a = config.dim_amount },
         .load_op = c.SDL_GPU_LOADOP_CLEAR,
         .store_op = c.SDL_GPU_STOREOP_DONT_CARE,
         .texture = swapchain_image,
@@ -294,6 +337,9 @@ fn createSwapchain(gpu_device: *c.SDL_GPUDevice, session: c.XrSession, cmdbuf: *
 fn clearXrEventQueue(state: *State, arena: std.mem.Allocator) !bool {
     var event: c.XrEventDataBuffer = undefined;
 
+    log.debug("Clearing event queue", .{});
+    defer log.debug("Cleared event queue", .{});
+
     while (true) {
         xr.handleResult(c.xrPollEvent(state.instance, &event)) catch |err| {
             // If we're out of events, break out of the loop
@@ -302,6 +348,8 @@ fn clearXrEventQueue(state: *State, arena: std.mem.Allocator) !bool {
 
             return err;
         };
+
+        log.debug("Got event with type {d}", .{event.type});
 
         switch (event.type) {
             c.XR_TYPE_EVENT_DATA_SESSION_STATE_CHANGED => {

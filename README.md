@@ -3,6 +3,7 @@
 A Linux OpenXR overlay to help you sleep in VR, built for runtimes implementing EXTX_overlay
 
 - [x] Dim the user's screen
+- [ ] Configuration file
 - [ ] Automatically enable when the user is detected sleep
 - [ ] Automatically disable when the user is detected awake
 - [ ] Custom dim overlay

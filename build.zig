@@ -9,6 +9,9 @@ pub fn build(b: *std.Build) void {
     const sdl_include = b.dependency("SDL", .{}).path("include");
     const stb = b.dependency("stb", .{}).path(".");
 
+    const known_folders_dep = b.dependency("known-folders", .{ .target = target, .optimize = optimize });
+    const known_folders_mod = known_folders_dep.module("known-folders");
+
     const translate_c = b.addTranslateC(.{
         .link_libc = true,
         .optimize = optimize,
@@ -28,6 +31,10 @@ pub fn build(b: *std.Build) void {
             .{
                 .name = "c",
                 .module = translate_c_mod,
+            },
+            .{
+                .name = "known-folders",
+                .module = known_folders_mod,
             },
         },
         .link_libc = true,
