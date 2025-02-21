@@ -9,6 +9,7 @@ A Linux OpenXR overlay to help you sleep in VR, built for runtimes implementing 
 - [ ] Automatically disable when the user is detected awake
 - [ ] Custom dim overlay
 - [ ] OSC message on enable/disable, and to enable/disable
+- [ ] Set WiVRn bitrate on enable/disable
 
 ## Building
 
