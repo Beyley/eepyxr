@@ -115,6 +115,28 @@ pub fn main() !void {
     defer c.SDL_DestroyGPUDevice(gpu_device);
     defer _ = c.SDL_WaitForGPUIdle(gpu_device); // wait for idle, ignore any error, we're quitting anyway.
 
+    const environment_blend_mode = find_blend_mode: {
+        var blend_mode: c.XrEnvironmentBlendMode = c.XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
+
+        var blend_mode_count: u32 = undefined;
+        try xr.handleResult(c.xrEnumerateEnvironmentBlendModes(instance, system_id, c.XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO, 0, &blend_mode_count, null));
+
+        const blend_modes = try gpa.alloc(c.XrEnvironmentBlendMode, blend_mode_count);
+        defer gpa.free(blend_modes);
+
+        try xr.handleResult(c.xrEnumerateEnvironmentBlendModes(instance, system_id, c.XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO, blend_mode_count, &blend_mode_count, blend_modes.ptr));
+
+        for (blend_modes) |supported_blend_mode| {
+            // if we find alpha blend supported by the runtime, we should always pick that
+            // TODO: this should be a config option
+            if (supported_blend_mode == c.XR_ENVIRONMENT_BLEND_MODE_ALPHA_BLEND)
+                blend_mode = supported_blend_mode;
+        }
+
+        break :find_blend_mode blend_mode;
+    };
+    log.info("Picked environment blend mode {d}", .{environment_blend_mode});
+
     var session: c.XrSession = undefined;
 
     var session_create_info: c.XrSessionCreateInfo = .{ .type = c.XR_TYPE_SESSION_CREATE_INFO };
@@ -269,7 +291,7 @@ pub fn main() !void {
         try xr.handleResult(c.xrEndFrame(session, &.{
             .type = c.XR_TYPE_FRAME_END_INFO,
             .displayTime = frame_state.predictedDisplayTime,
-            .environmentBlendMode = c.XR_ENVIRONMENT_BLEND_MODE_OPAQUE,
+            .environmentBlendMode = environment_blend_mode,
             .layers = layers.ptr,
             .layerCount = @intCast(layers.len),
         }));
