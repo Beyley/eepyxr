@@ -4,7 +4,7 @@ A Linux OpenXR overlay to help you sleep in VR, built for runtimes implementing 
 
 - [x] Dim the user's screen
 - [x] Configuration file
-- [ ] System tray for closing app
+- [x] System tray for closing app
 - [ ] Automatically enable when the user is detected sleep
 - [ ] Automatically disable when the user is detected awake
 - [ ] Custom dim overlay
