@@ -57,7 +57,7 @@ pub const Surface = struct {
         const image_data = c.stbi_load_from_memory(data.ptr, @intCast(data.len), &width, &height, &channels_in_file, wanted_channels) orelse return error.FailedToLoadImage;
         errdefer c.stbi_image_free(image_data);
 
-        const surface = c.SDL_CreateSurfaceFrom(width, height, c.SDL_PIXELFORMAT_RGBA8888, image_data, wanted_channels * width) orelse return error.FailedToCreateSurface;
+        const surface = c.SDL_CreateSurfaceFrom(width, height, c.SDL_PIXELFORMAT_RGBA32, image_data, wanted_channels * width) orelse return error.FailedToCreateSurface;
 
         return .{ .sdl = surface, .data = image_data[0..@intCast(width * height * wanted_channels)] };
     }
