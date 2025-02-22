@@ -18,4 +18,6 @@ A Linux OpenXR overlay to help you sleep in VR, built for runtimes implementing 
 
 ```bash
 zig build -Doptimize=ReleaseSafe
+
+zig-out/bin/eepyxr
 ```
