@@ -10,7 +10,7 @@ pub const Tray = struct {
         const icon = try Surface.fromData(@embedFile("assets/icon.png"));
         errdefer icon.deinit();
 
-        const tray = c.SDL_CreateTray(icon.sdl, "eepyxr") orelse return error.FailedToCreateTrayObject;
+        const tray = c.SDL_CreateTray(icon.sdl, "eepyXR") orelse return error.FailedToCreateTrayObject;
         errdefer c.SDL_DestroyTray(tray);
 
         const tray_menu = c.SDL_CreateTrayMenu(tray) orelse return error.FailedToCreateTrayMenu;
@@ -18,7 +18,7 @@ pub const Tray = struct {
         const program_label = c.SDL_InsertTrayEntryAt(
             tray_menu,
             -1,
-            "eepyxr",
+            "eepyXR",
             c.SDL_TRAYENTRY_BUTTON | c.SDL_TRAYENTRY_DISABLED,
         ) orelse return error.FailedToCreateTrayEntry;
         _ = program_label;
