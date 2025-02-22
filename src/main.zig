@@ -108,6 +108,13 @@ pub fn runApp() !void {
     defer if (gpa_impl.deinit() == .leak) @panic("MEMORY LEAK FUCKFUCK FCCKNECEKONHSKO");
     const gpa = gpa_impl.allocator();
 
+    _ = c.SDL_SetAppMetadataProperty(c.SDL_PROP_APP_METADATA_NAME_STRING, "eepyXR");
+    _ = c.SDL_SetAppMetadataProperty(c.SDL_PROP_APP_METADATA_IDENTIFIER_STRING, "moe.beyleyisnot.eepyxr");
+    _ = c.SDL_SetAppMetadataProperty(c.SDL_PROP_APP_METADATA_CREATOR_STRING, "Beyley Cardellio");
+    _ = c.SDL_SetAppMetadataProperty(c.SDL_PROP_APP_METADATA_COPYRIGHT_STRING, "Copyright (c) 2025 Beyley Cardellio <ep1cm1n10n123@gmail.com>");
+    _ = c.SDL_SetAppMetadataProperty(c.SDL_PROP_APP_METADATA_URL_STRING, "https://github.com/Beyley/eepyxr");
+    _ = c.SDL_SetAppMetadataProperty(c.SDL_PROP_APP_METADATA_TYPE_STRING, "application");
+
     if (!c.SDL_Init(c.SDL_INIT_VIDEO)) return error.FailedToInitSdl;
     defer c.SDL_Quit();
     log.info("Init SDL", .{});
