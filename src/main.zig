@@ -5,6 +5,7 @@ const c = @import("c");
 
 const Config = @import("Config.zig");
 const math = @import("math.zig");
+const sdl = @import("sdl.zig");
 const xr = @import("xr.zig");
 
 const log = std.log.scoped(.main);
@@ -39,6 +40,7 @@ const State = struct {
     session_data: ?SessionData,
     swapchain: Swapchain,
     config: Config,
+    run: bool,
 };
 
 const SessionData = struct {
@@ -51,10 +53,57 @@ const SessionData = struct {
     }
 };
 
-var run: bool = true;
-const run_ptr: *volatile bool = &run;
+const Globals = struct {
+    /// Whether or not to exit the app
+    var request_graceful_exit: bool = false;
+    /// A volatile pointer to the request exit flag, only allowing access through volatile to prevent thread-specific caching shenanigans from optimizations
+    pub var request_graceful_exit_ptr: *volatile bool = &request_graceful_exit;
+
+    /// Whether or not to exit the app
+    var request_hard_exit: bool = false;
+    /// A volatile pointer to the request exit flag, only allowing access through volatile to prevent thread-specific caching shenanigans from optimizations
+    pub var request_hard_exit_ptr: *volatile bool = &request_hard_exit;
+
+    fn requestExit() void {
+        if (request_graceful_exit_ptr.*) {
+            log.info("Two graceful exits requested, assuming the user wants us gone asap, requesting hard exit", .{});
+            request_hard_exit_ptr.* = true;
+            return;
+        }
+
+        request_graceful_exit_ptr.* = true;
+    }
+
+    fn requestHardExit() void {
+        request_hard_exit_ptr.* = true;
+    }
+};
+
+fn interruptHandler(dummy: c_int) callconv(.c) void {
+    _ = dummy;
+
+    Globals.requestExit();
+}
+
+const TrayButtonHandlers = struct {
+    // request an exit if the user presses the button for it
+    pub fn exitSession(user_data: ?*anyopaque, tray_entry: ?*c.SDL_TrayEntry) callconv(.c) void {
+        _ = tray_entry;
+        _ = user_data;
+
+        Globals.requestExit();
+    }
+};
 
 pub fn main() !void {
+    runApp() catch |err| {
+        log.err("Runtime hit error... SDL Error: {s}, passing error up more", .{c.SDL_GetError()});
+
+        return err;
+    };
+}
+
+pub fn runApp() !void {
     var gpa_impl: std.heap.GeneralPurposeAllocator(.{}) = .init;
     defer if (gpa_impl.deinit() == .leak) @panic("MEMORY LEAK FUCKFUCK FCCKNECEKONHSKO");
     const gpa = gpa_impl.allocator();
@@ -188,24 +237,29 @@ pub fn main() !void {
         .frame_arena_impl = .init(gpa),
         .session_data = null,
         .config = config,
+        .run = true,
     };
     defer {
         if (state.session_data) |session_data| session_data.deinit(gpa);
         state.frame_arena_impl.deinit();
     }
 
-    const stdin = std.io.getStdIn();
-    const stdin_handle = stdin.handle;
-    {
-        // Set stdin to nonblocking
-        var o: std.os.linux.O = @bitCast(@as(u32, @intCast(std.os.linux.fcntl(stdin_handle, std.os.linux.F.GETFL, 0))));
-        o.NONBLOCK = true;
-        _ = std.os.linux.fcntl(stdin_handle, std.os.linux.F.SETFL, @as(u32, @bitCast(o)));
+    if (builtin.target.os.tag == .linux) {
+        _ = c.signal(c.SIGINT, interruptHandler);
     }
-    const stdin_reader = stdin.reader();
+
+    const tray = try sdl.Tray.create(TrayButtonHandlers.exitSession, &state);
+    defer tray.deinit();
 
     var frame: usize = 0;
-    while (run_ptr.*) {
+    while (state.run) {
+        // *immediately* exit out
+        if (Globals.request_hard_exit_ptr.*) {
+            log.info("Hard exit requested, exiting out...", .{});
+
+            break;
+        }
+
         defer {
             log.debug("Handled frame {d}", .{frame});
             frame +%= 1;
@@ -213,30 +267,17 @@ pub fn main() !void {
 
         defer _ = state.frame_arena_impl.reset(.{ .retain_with_limit = 1024 * 10 });
 
-        var temp_buf: [8]u8 = undefined;
-        const read = stdin_reader.read(&temp_buf) catch |err| handle_read_error: {
-            if (err == std.fs.File.ReadError.WouldBlock) {
-                break :handle_read_error 0;
-            }
-
-            return err;
-        };
-
-        if (read > 0) {
-            switch (state.session_state) {
-                .synchronized, .visible, .focused => {
-                    try xr.handleResult(c.xrRequestExitSession(session));
-                },
-                else => {
-                    break;
-                },
-            }
-        }
-
         const frame_arena = state.frame_arena_impl.allocator();
+
+        if (Globals.request_graceful_exit_ptr.*) {
+            log.info("Exit requested...", .{});
+
+            try xr.handleResult(c.xrRequestExitSession(session));
+        }
 
         // Early return if an event says to
         if (!try clearXrEventQueue(&state, frame_arena)) return;
+        if (!try clearSdlEventQueue(&state, frame_arena)) return;
 
         // sleep 20ms waiting for our session to be ready...
         if (state.session_data == null) {
@@ -355,6 +396,24 @@ fn createSwapchain(gpu_device: *c.SDL_GPUDevice, session: c.XrSession, cmdbuf: *
     };
 }
 
+/// Handles a continuous stream of SDL events until none are left to process, returning whether or not to continue the app.
+fn clearSdlEventQueue(state: *State, arena: std.mem.Allocator) !bool {
+    _ = arena;
+    _ = state;
+
+    var event: c.SDL_Event = undefined;
+    while (c.SDL_PollEvent(&event)) {
+        switch (event.type) {
+            c.SDL_EVENT_QUIT => {
+                Globals.requestExit();
+            },
+            else => {},
+        }
+    }
+
+    return true;
+}
+
 /// Handles a continuous stream of OpenXR events until none are left to process, returning whether or not to continue the app.
 fn clearXrEventQueue(state: *State, arena: std.mem.Allocator) !bool {
     var event: c.XrEventDataBuffer = undefined;
@@ -429,7 +488,7 @@ fn clearXrEventQueue(state: *State, arena: std.mem.Allocator) !bool {
                         try xr.handleResult(c.xrEndSession(state.session));
                     },
                     .exiting, .loss_pending => {
-                        run_ptr.* = false;
+                        Globals.requestHardExit(); // exiting/loss pending means we need to gtfo now
                         return false;
                     },
                     _ => log.warn("Unhandled session state {d}", .{session_state_changed_event.state}),

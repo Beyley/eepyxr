@@ -45,6 +45,9 @@ pub fn build(b: *std.Build) void {
     exe_mod.addIncludePath(stb);
     exe_mod.addCSourceFile(.{ .file = src.path(b, "c.c") });
 
+    exe_mod.addAnonymousImport("assets/icon.png", .{ .root_source_file = b.path("assets/icon.png") });
+    // exe_mod.addAnonymousImport("assets/icon.png", .{ .root_source_file = b.path("assets/half-pipe.png") });
+
     const exe = b.addExecutable(.{
         .name = "eepyxr",
         .root_module = exe_mod,

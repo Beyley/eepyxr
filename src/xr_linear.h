@@ -1,4 +1,4 @@
-// Copyright (c) 2024, Beyley Cardellio <ep1cm1n10n123@gmail.com>
+// Copyright (c) 2024-2025, Beyley Cardellio <ep1cm1n10n123@gmail.com>
 // Copyright (c) 2017-2024, The Khronos Group Inc.
 // Copyright (c) 2016, Oculus VR, LLC.
 //
