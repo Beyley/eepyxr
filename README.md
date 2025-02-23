@@ -2,15 +2,6 @@
 
 A Linux OpenXR overlay to help you sleep in VR, built for runtimes implementing EXTX_overlay
 
-- [x] Dim the user's screen
-- [x] Configuration file
-- [x] System tray for closing app
-- [ ] Automatically enable when the user is detected sleep
-- [ ] Automatically disable when the user is detected awake
-- [ ] Custom dim overlay
-- [ ] OSC message on enable/disable, and to enable/disable
-- [ ] Set WiVRn bitrate on enable/disable
-
 ## Building
 
 - Requires the latest dev build of Zig (tested against `0.14.0-dev.3062+ff551374a`)

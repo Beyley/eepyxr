@@ -8,6 +8,19 @@ const math = @import("math.zig");
 const sdl = @import("sdl.zig");
 const xr = @import("xr.zig");
 
+const process_killer = switch (builtin.os.tag) {
+    .linux => @import("process_killer.zig"),
+
+    else => struct {
+        // dummy impl to not cause compile errors on unsupported platforms
+        pub fn sigintAllProcessesWithBasename(arena: std.mem.Allocator, exe_name: []const u8) !bool {
+            _ = exe_name;
+            _ = arena;
+            return false;
+        }
+    },
+};
+
 const log = std.log.scoped(.main);
 
 pub const std_options: std.Options = .{
@@ -107,6 +120,26 @@ pub fn runApp() !void {
     var gpa_impl: std.heap.GeneralPurposeAllocator(.{}) = .init;
     defer if (gpa_impl.deinit() == .leak) @panic("MEMORY LEAK FUCKFUCK FCCKNECEKONHSKO");
     const gpa = gpa_impl.allocator();
+
+    const args = try std.process.argsAlloc(gpa);
+    defer std.process.argsFree(gpa, args);
+
+    const config: Config = load_config: {
+        var arena: std.heap.ArenaAllocator = .init(gpa);
+        defer arena.deinit();
+
+        break :load_config try .load(arena.allocator());
+    };
+
+    if (config.close_active_instance_on_startup) {
+        var arena: std.heap.ArenaAllocator = .init(gpa);
+        defer arena.deinit();
+
+        // exit out if we MURDER another eepyxr process
+        if (try process_killer.sigintAllProcessesWithBasename(arena.allocator(), std.fs.path.basename(args[0]))) {
+            return;
+        }
+    }
 
     _ = c.SDL_SetAppMetadataProperty(c.SDL_PROP_APP_METADATA_NAME_STRING, "eepyXR");
     _ = c.SDL_SetAppMetadataProperty(c.SDL_PROP_APP_METADATA_IDENTIFIER_STRING, "moe.beyleyisnot.eepyxr");
@@ -212,13 +245,6 @@ pub fn runApp() !void {
         .poseInReferenceSpace = .{ .orientation = comptime math.Quaternionf.identity.to() },
         .referenceSpaceType = c.XR_REFERENCE_SPACE_TYPE_STAGE,
     }, &stage_space));
-
-    const config: Config = load_config: {
-        var arena: std.heap.ArenaAllocator = .init(gpa);
-        defer arena.deinit();
-
-        break :load_config try .load(arena.allocator());
-    };
 
     const swapchain = create_gpu_resources: {
         const cmdbuf = c.SDL_AcquireGPUCommandBuffer(gpu_device) orelse return error.FailedToAcquireGpuCmdBuf;
