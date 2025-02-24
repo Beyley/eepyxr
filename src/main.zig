@@ -325,8 +325,9 @@ pub fn runApp() !void {
 
             const views = session_data.views[0..view_count];
             const projection_views = session_data.projection_views[0..view_count];
+            const swapchains = session_data.swapchains[0..view_count];
 
-            for (views, projection_views, session_data.swapchains) |view, *projection_view, swapchain| {
+            for (views, projection_views, swapchains) |view, *projection_view, swapchain| {
                 projection_view.* = .{
                     .type = c.XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW,
                     .fov = view.fov,
@@ -505,6 +506,7 @@ fn clearXrEventQueue(state: *State, arena: std.mem.Allocator) !bool {
                             for (swapchains[0..written]) |swapchain| swapchain.deinit(state.gpu_device);
 
                             for (swapchains, views_configuration_views) |*swapchain, view_configuration| {
+                                log.debug("Creating swapchain with size {d}x{d}", .{view_configuration.recommendedImageRectWidth, view_configuration.recommendedImageRectHeight})
                                 swapchain.* = try createSwapchain(state.gpu_device, state.session, cmdbuf, state.config, .{
                                     .width = @intCast(view_configuration.recommendedImageRectWidth),
                                     .height = @intCast(view_configuration.recommendedImageRectHeight),
