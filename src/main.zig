@@ -51,7 +51,6 @@ const State = struct {
     frame_arena_impl: std.heap.ArenaAllocator,
     gpa: std.mem.Allocator,
     session_data: ?SessionData,
-    swapchain: Swapchain,
     config: Config,
     run: bool,
 };
@@ -59,10 +58,13 @@ const State = struct {
 const SessionData = struct {
     projection_views: []c.XrCompositionLayerProjectionView,
     views: []c.XrView,
+    swapchains: []const Swapchain,
 
-    pub fn deinit(self: SessionData, gpa: std.mem.Allocator) void {
+    pub fn deinit(self: SessionData, gpa: std.mem.Allocator, gpu_device: *c.SDL_GPUDevice) void {
         gpa.free(self.projection_views);
         gpa.free(self.views);
+        for (self.swapchains) |swapchain| swapchain.deinit(gpu_device);
+        gpa.free(self.swapchains);
     }
 };
 
@@ -246,21 +248,7 @@ pub fn runApp() !void {
         .referenceSpaceType = c.XR_REFERENCE_SPACE_TYPE_STAGE,
     }, &stage_space));
 
-    const swapchain = create_gpu_resources: {
-        const cmdbuf = c.SDL_AcquireGPUCommandBuffer(gpu_device) orelse return error.FailedToAcquireGpuCmdBuf;
-        errdefer _ = c.SDL_CancelGPUCommandBuffer(cmdbuf);
-
-        const swapchain = try createSwapchain(gpu_device, session, cmdbuf, config);
-        errdefer swapchain.deinit(gpu_device);
-
-        if (!c.SDL_SubmitGPUCommandBuffer(cmdbuf)) return error.FailedToSubmitGpuWork;
-
-        break :create_gpu_resources swapchain;
-    };
-    defer swapchain.deinit(gpu_device);
-
     var state: State = .{
-        .swapchain = swapchain,
         .gpu_device = gpu_device,
         .instance = instance,
         .session = session,
@@ -273,7 +261,7 @@ pub fn runApp() !void {
         .run = true,
     };
     defer {
-        if (state.session_data) |session_data| session_data.deinit(gpa);
+        if (state.session_data) |session_data| session_data.deinit(gpa, gpu_device);
         state.frame_arena_impl.deinit();
     }
 
@@ -338,15 +326,15 @@ pub fn runApp() !void {
             const views = session_data.views[0..view_count];
             const projection_views = session_data.projection_views[0..view_count];
 
-            for (views, projection_views) |view, *projection_view| {
+            for (views, projection_views, session_data.swapchains) |view, *projection_view, swapchain| {
                 projection_view.* = .{
                     .type = c.XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW,
                     .fov = view.fov,
                     .pose = view.pose,
                     .subImage = .{
                         .imageArrayIndex = 0,
-                        .swapchain = state.swapchain.xr,
-                        .imageRect = .{ .extent = state.swapchain.extent },
+                        .swapchain = swapchain.xr,
+                        .imageRect = .{ .extent = swapchain.extent },
                     },
                 };
             }
@@ -372,14 +360,11 @@ pub fn runApp() !void {
     }
 }
 
-fn createSwapchain(gpu_device: *c.SDL_GPUDevice, session: c.XrSession, cmdbuf: *c.SDL_GPUCommandBuffer, config: Config) !Swapchain {
-    // this isn't 1x1 to prevent sampling issues, it seems the edges of the swapchain get darker if it's 1x1
-    const size = 64;
-
+fn createSwapchain(gpu_device: *c.SDL_GPUDevice, session: c.XrSession, cmdbuf: *c.SDL_GPUCommandBuffer, config: Config, view_size: c.XrExtent2Di) !Swapchain {
     const swapchain_create_info: c.XrSwapchainCreateInfo = .{
         .type = c.XR_TYPE_SWAPCHAIN_CREATE_INFO,
-        .width = size,
-        .height = size,
+        .width = @intCast(view_size.width),
+        .height = @intCast(view_size.height),
         .mipCount = 1,
         .sampleCount = 1,
         .faceCount = 1,
@@ -425,7 +410,7 @@ fn createSwapchain(gpu_device: *c.SDL_GPUDevice, session: c.XrSession, cmdbuf: *
         .xr = swapchain,
         .images = swapchain_images,
         .format = texture_format,
-        .extent = .{ .width = @intCast(swapchain_create_info.width), .height = @intCast(swapchain_create_info.height) },
+        .extent = view_size,
     };
 }
 
@@ -509,9 +494,34 @@ fn clearXrEventQueue(state: *State, arena: std.mem.Allocator) !bool {
                         errdefer state.gpa.free(views_configuration_views);
                         @memset(views, .{ .type = c.XR_TYPE_VIEW });
 
+                        const swapchains = create_gpu_resources: {
+                            const swapchains = try state.gpa.alloc(Swapchain, view_count);
+                            errdefer state.gpa.free(swapchains);
+
+                            const cmdbuf = c.SDL_AcquireGPUCommandBuffer(state.gpu_device) orelse return error.FailedToAcquireGpuCommandBuffer;
+                            errdefer _ = c.SDL_CancelGPUCommandBuffer(cmdbuf); // ignore errors, we are tearing down anyway
+
+                            var written: usize = 0;
+                            for (swapchains[0..written]) |swapchain| swapchain.deinit(state.gpu_device);
+
+                            for (swapchains, views_configuration_views) |*swapchain, view_configuration| {
+                                swapchain.* = try createSwapchain(state.gpu_device, state.session, cmdbuf, state.config, .{
+                                    .width = @intCast(view_configuration.recommendedImageRectWidth),
+                                    .height = @intCast(view_configuration.recommendedImageRectHeight),
+                                });
+                                written += 1;
+                            }
+
+                            if (!c.SDL_SubmitGPUCommandBuffer(cmdbuf)) return error.FailedToSubmitGpuWork;
+
+                            break :create_gpu_resources swapchains;
+                        };
+                        errdefer state.gpa.free(swapchains);
+
                         state.session_data = .{
                             .projection_views = projection_views,
                             .views = views,
+                            .swapchains = swapchains,
                         };
                     },
                     .synchronized => {},
