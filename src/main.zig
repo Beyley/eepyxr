@@ -414,7 +414,7 @@ fn createSwapchain(gpu_device: *c.SDL_GPUDevice, session: c.XrSession, cmdbuf: *
     const render_pass = c.SDL_BeginGPURenderPass(cmdbuf, &.{
         .clear_color = .{ .a = config.dim_amount },
         .load_op = c.SDL_GPU_LOADOP_CLEAR,
-        .store_op = c.SDL_GPU_STOREOP_DONT_CARE,
+        .store_op = c.SDL_GPU_STOREOP_STORE,
         .texture = swapchain_image,
     }, 1, null) orelse return error.BadRenderPass;
     c.SDL_EndGPURenderPass(render_pass);
