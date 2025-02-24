@@ -506,7 +506,7 @@ fn clearXrEventQueue(state: *State, arena: std.mem.Allocator) !bool {
                             for (swapchains[0..written]) |swapchain| swapchain.deinit(state.gpu_device);
 
                             for (swapchains, views_configuration_views) |*swapchain, view_configuration| {
-                                log.debug("Creating swapchain with size {d}x{d}", .{view_configuration.recommendedImageRectWidth, view_configuration.recommendedImageRectHeight})
+                                log.debug("Creating swapchain with size {d}x{d}", .{ view_configuration.recommendedImageRectWidth, view_configuration.recommendedImageRectHeight });
                                 swapchain.* = try createSwapchain(state.gpu_device, state.session, cmdbuf, state.config, .{
                                     .width = @intCast(view_configuration.recommendedImageRectWidth),
                                     .height = @intCast(view_configuration.recommendedImageRectHeight),
