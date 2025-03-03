@@ -14,6 +14,10 @@
             .url = "git+https://github.com/ziglibs/known-folders#1cceeb70e77dec941a4178160ff6c8d05a74de6f",
             .hash = "12205f5e7505c96573f6fc5144592ec38942fb0a326d692f9cddc0c7dd38f9028f29",
         },
+        .monado = .{
+            .url = "git+https://gitlab.freedesktop.org/monado/monado#e076de071aa35db5f01f7a89b9f209ee60840fb2",
+            .hash = "12206603003f3642158cdca56ff6e1d7ae2e80c6561fc49ba0e42d5d241242e6c67f",
+        },
     },
     .paths = .{
         "build.zig",

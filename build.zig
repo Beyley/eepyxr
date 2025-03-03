@@ -8,6 +8,7 @@ pub fn build(b: *std.Build) void {
 
     const sdl_include = b.dependency("SDL", .{}).path("include");
     const stb = b.dependency("stb", .{}).path(".");
+    const monado_headers = b.dependency("monado", .{}).path("src/external/openxr_includes/");
 
     const known_folders_dep = b.dependency("known-folders", .{ .target = target, .optimize = optimize });
     const known_folders_mod = known_folders_dep.module("known-folders");
@@ -20,6 +21,7 @@ pub fn build(b: *std.Build) void {
     });
     translate_c.addIncludePath(sdl_include);
     translate_c.addIncludePath(stb);
+    translate_c.addIncludePath(monado_headers);
 
     const translate_c_mod = translate_c.createModule();
 
@@ -44,6 +46,8 @@ pub fn build(b: *std.Build) void {
 
     exe_mod.addIncludePath(stb);
     exe_mod.addCSourceFile(.{ .file = src.path(b, "c.c") });
+
+    exe_mod.addLibraryPath(b.path("bins"));
 
     exe_mod.addAnonymousImport("assets/icon.png", .{ .root_source_file = b.path("assets/icon.png") });
     exe_mod.addAnonymousImport("assets/grid.png", .{ .root_source_file = b.path("assets/grid.png") });
