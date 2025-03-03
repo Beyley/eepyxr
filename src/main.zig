@@ -6,6 +6,7 @@ const c = @import("c");
 const Config = @import("Config.zig");
 const math = @import("math.zig");
 const sdl = @import("sdl.zig");
+const Texture = @import("Texture.zig");
 const xr = @import("xr.zig");
 
 const process_killer = switch (builtin.os.tag) {
@@ -338,6 +339,15 @@ pub fn runApp() !void {
             const views = session_data.views[0..view_count];
             const projection_views = session_data.projection_views[0..view_count];
 
+            // std.debug.print("{d}x{d}x{d}, {d}x{d}x{d}\n", .{
+            //     views[0].pose.position.x,
+            //     views[0].pose.position.y,
+            //     views[0].pose.position.z,
+            //     views[1].pose.position.x,
+            //     views[1].pose.position.y,
+            //     views[1].pose.position.z,
+            // });
+
             for (views, projection_views) |view, *projection_view| {
                 projection_view.* = .{
                     .type = c.XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW,
@@ -359,6 +369,21 @@ pub fn runApp() !void {
                 .layerFlags = c.XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT,
             };
 
+            // const layer: c.XrCompositionLayerQuad = .{
+            //     .type = c.XR_TYPE_COMPOSITION_LAYER_QUAD,
+            //     .pose = .{
+            //         .orientation = .{ .w = 1 },
+            //         .position = .{ .z = -0.8, .y = 1.6 },
+            //     },
+            //     .size = .{ .width = 960.0 / 1080.0, .height = 1080.0 / 1080.0 },
+            //     .eyeVisibility = c.XR_EYE_VISIBILITY_BOTH,
+            //     .space = stage_space,
+            //     .subImage = .{
+            //         .swapchain = state.swapchain.xr,
+            //         .imageRect = .{ .extent = state.swapchain.extent },
+            //     },
+            // };
+
             break :generate_layers &.{@ptrCast(&layer)};
         } else &.{};
 
@@ -373,13 +398,14 @@ pub fn runApp() !void {
 }
 
 fn createSwapchain(gpu_device: *c.SDL_GPUDevice, session: c.XrSession, cmdbuf: *c.SDL_GPUCommandBuffer, config: Config) !Swapchain {
+    _ = config; // autofix
     // this isn't 1x1 to prevent sampling issues, it seems the edges of the swapchain get darker if it's 1x1
-    const size = 64;
+    // const size = 1400;
 
     const swapchain_create_info: c.XrSwapchainCreateInfo = .{
         .type = c.XR_TYPE_SWAPCHAIN_CREATE_INFO,
-        .width = size,
-        .height = size,
+        .width = 960,
+        .height = 1080,
         .mipCount = 1,
         .sampleCount = 1,
         .faceCount = 1,
@@ -411,13 +437,34 @@ fn createSwapchain(gpu_device: *c.SDL_GPUDevice, session: c.XrSession, cmdbuf: *
     const swapchain_image = swapchain_images[image_index];
 
     // Just create an empty render pass to clear the texture
-    const render_pass = c.SDL_BeginGPURenderPass(cmdbuf, &.{
-        .clear_color = .{ .a = config.dim_amount },
-        .load_op = c.SDL_GPU_LOADOP_CLEAR,
-        .store_op = c.SDL_GPU_STOREOP_STORE,
-        .texture = swapchain_image,
-    }, 1, null) orelse return error.BadRenderPass;
-    c.SDL_EndGPURenderPass(render_pass);
+    // const render_pass = c.SDL_BeginGPURenderPass(cmdbuf, &.{
+    //     .clear_color = .{ .a = config.dim_amount },
+    //     .load_op = c.SDL_GPU_LOADOP_CLEAR,
+    //     .store_op = c.SDL_GPU_STOREOP_STORE,
+    //     .texture = swapchain_image,
+    // }, 1, null) orelse return error.BadRenderPass;
+    // c.SDL_EndGPURenderPass(render_pass);
+
+    const copy_pass = c.SDL_BeginGPUCopyPass(cmdbuf) orelse unreachable;
+    const grid_texture = try Texture.load(@embedFile("assets/grid.png"), gpu_device, copy_pass);
+    defer grid_texture.deinit(gpu_device);
+    c.SDL_EndGPUCopyPass(copy_pass);
+
+    c.SDL_BlitGPUTexture(cmdbuf, &.{
+        .clear_color = .{ .a = 1 },
+        .source = .{
+            .texture = grid_texture.sdl,
+            .w = 960,
+            .h = 1080,
+        },
+        .destination = .{
+            .texture = swapchain_image,
+            .w = 960,
+            .h = 1080,
+        },
+        .load_op = c.SDL_GPU_LOADOP_LOAD,
+        .filter = c.SDL_GPU_FILTER_NEAREST,
+    });
 
     try xr.handleResult(c.xrReleaseSwapchainImage(swapchain, &.{ .type = c.XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO }));
 

@@ -12,7 +12,7 @@ pub fn load(data: []const u8, gpu_device: *c.SDL_GPUDevice, copy_pass: *c.SDL_GP
     var width: c_int = undefined;
     var height: c_int = undefined;
     var channels_in_file: c_int = undefined;
-    const overlay_texture_image = c.stbi_load_from_memory(data.ptr, data.len, &width, &height, &channels_in_file, 4) orelse return error.FailedToLoadImage;
+    const overlay_texture_image = c.stbi_load_from_memory(data.ptr, @intCast(data.len), &width, &height, &channels_in_file, 4) orelse return error.FailedToLoadImage;
     defer c.stbi_image_free(overlay_texture_image);
 
     const image_data = overlay_texture_image[0..@intCast(width * height * 4)];
