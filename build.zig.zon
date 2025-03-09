@@ -1,18 +1,19 @@
 .{
-    .name = "eepyxr",
+    .name = .eepyxr,
     .version = "0.0.0",
+    .fingerprint = 0xd1dbd7da7b655602,
     .dependencies = .{
         .SDL = .{
             .url = "git+https://github.com/Beyley/SDL?ref=openxr#d64e41f95ea641a32da18e526d57013966a96b41",
-            .hash = "1220f49d1528cb7232f72d92aa0bb36e0b0e201fa82f5d285484d9f0977a474c9db3",
+            .hash = "N-V-__8AAF1kjwP0nRUoy3Iy9y2SqguzbgsOIB-oL10oVITZ",
         },
         .stb = .{
             .url = "git+https://github.com/nothings/stb#5c205738c191bcb0abc65c4febfa9bd25ff35234",
-            .hash = "122082911aadaef3c836d3833f7c60386ee1ee46feffb6c54785f784801c32212aaa",
+            .hash = "N-V-__8AAAokTgCCkRqtrvPINtODP3xgOG7h7kb-_7bFR4X3",
         },
         .@"known-folders" = .{
-            .url = "git+https://github.com/ziglibs/known-folders#1cceeb70e77dec941a4178160ff6c8d05a74de6f",
-            .hash = "12205f5e7505c96573f6fc5144592ec38942fb0a326d692f9cddc0c7dd38f9028f29",
+            .url = "git+https://github.com/ziglibs/known-folders#aa24df42183ad415d10bc0a33e6238c437fc0f59",
+            .hash = "known_folders-0.0.0-Fy-PJtLDAADGDOwYwMkVydMSTp_aN-nfjCZw6qPQ2ECL",
         },
     },
     .paths = .{
