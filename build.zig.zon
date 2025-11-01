@@ -11,9 +11,9 @@
             .url = "git+https://github.com/nothings/stb#5c205738c191bcb0abc65c4febfa9bd25ff35234",
             .hash = "N-V-__8AAAokTgCCkRqtrvPINtODP3xgOG7h7kb-_7bFR4X3",
         },
-        .@"known-folders" = .{
-            .url = "git+https://github.com/ziglibs/known-folders#aa24df42183ad415d10bc0a33e6238c437fc0f59",
-            .hash = "known_folders-0.0.0-Fy-PJtLDAADGDOwYwMkVydMSTp_aN-nfjCZw6qPQ2ECL",
+        .known_folders = .{
+            .url = "git+https://github.com/ziglibs/known-folders#ab5cf5feb936fa3b72c95d3ad0c0c67791937ba1",
+            .hash = "known_folders-0.0.0-Fy-PJtTTAADUOhGKM0sxzG4eMkNQxRvx9e5dfHVyaeA3",
         },
     },
     .paths = .{

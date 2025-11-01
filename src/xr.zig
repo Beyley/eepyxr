@@ -184,8 +184,7 @@ pub fn debugMessengerCallback(
 
     var flags_buf: [7 + 10 + 11 + 11 + (3 * 4)]u8 = undefined;
     const flags_str = blk: {
-        var stream = std.io.fixedBufferStream(&flags_buf);
-        const writer = stream.writer();
+        var writer: std.Io.Writer = .fixed(&flags_buf);
 
         if (flags & c.XR_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT > 0) writer.writeAll("GENERAL | ") catch unreachable;
         if (flags & c.XR_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT > 0) writer.writeAll("VALIDATION | ") catch unreachable;
@@ -193,9 +192,9 @@ pub fn debugMessengerCallback(
         if (flags & c.XR_DEBUG_UTILS_MESSAGE_TYPE_CONFORMANCE_BIT_EXT > 0) writer.writeAll("CONFORMANCE | ") catch unreachable;
 
         // If we wrote some flags, pop the last " | "
-        if (@popCount(flags & 0b1111) > 0) stream.pos -= 3;
+        if (@popCount(flags & 0b1111) > 0) writer.undo(3);
 
-        break :blk stream.getWritten();
+        break :blk writer.buffered();
     };
 
     const format = "[{s}] {s}, {s}, \"{s}\"";
@@ -352,21 +351,21 @@ pub fn discoverXrExtensions(gpa: std.mem.Allocator, pfns: Pfns) !Extensions {
 }
 
 pub fn addOutputToChain(chain: *anyopaque, ptr: *anyopaque) void {
-    var last: *c.XrBaseOutStructure = @alignCast(@ptrCast(chain));
+    var last: *c.XrBaseOutStructure = @ptrCast(@alignCast(chain));
     var iter: ?*c.XrBaseOutStructure = last;
     while (iter) |base| {
         last = iter.?;
         iter = base.next;
     }
-    last.next = @alignCast(@ptrCast(ptr));
+    last.next = @ptrCast(@alignCast(ptr));
 }
 
 pub fn addinputToChain(chain: *anyopaque, ptr: *anyopaque) void {
-    var last: *c.XrBaseInStructure = @alignCast(@ptrCast(chain));
+    var last: *c.XrBaseInStructure = @ptrCast(@alignCast(chain));
     var iter: ?*c.XrBaseInStructure = last;
     while (iter) |base| {
         last = iter.?;
         iter = @constCast(base.next); // SAFETY: we just have to hope...
     }
-    last.next = @alignCast(@ptrCast(ptr));
+    last.next = @ptrCast(@alignCast(ptr));
 }

@@ -314,7 +314,7 @@ pub fn runApp() !void {
 
         // sleep 20ms waiting for our session to be ready...
         if (state.session_data == null) {
-            std.time.sleep(std.time.ns_per_ms * 20);
+            std.Thread.sleep(std.time.ns_per_ms * 20);
             continue;
         }
 
