@@ -22,8 +22,10 @@ pub fn load(arena: std.mem.Allocator) !Config {
 
             const default_config: Config = .{};
 
-            var buffered_writer = std.io.bufferedWriter(new_file.writer());
-            try std.json.stringify(default_config, .{ .whitespace = .indent_tab }, buffered_writer.writer());
+            var buf: [1024]u8 = undefined;
+            var buffered_writer_impl = new_file.writer(&buf);
+            const buffered_writer = &buffered_writer_impl.interface;
+            try std.json.fmt(default_config, .{ .whitespace = .indent_tab }).format(buffered_writer);
             try buffered_writer.flush();
 
             return default_config;
@@ -32,9 +34,11 @@ pub fn load(arena: std.mem.Allocator) !Config {
         return err;
     };
 
-    var buffered_reader = std.io.bufferedReader(config_file.reader());
+    var buf: [1024]u8 = undefined;
+    var buffered_reader_impl = config_file.reader(&buf);
+    const buffered_reader = &buffered_reader_impl.interface;
 
-    var json_reader = std.json.reader(arena, buffered_reader.reader());
+    var json_reader = std.json.Reader.init(arena, buffered_reader);
     const loaded_config = try std.json.parseFromTokenSourceLeaky(Config, arena, &json_reader, .{});
 
     return loaded_config;

@@ -9,7 +9,7 @@ pub fn build(b: *std.Build) void {
     const sdl_include = b.dependency("SDL", .{}).path("include");
     const stb = b.dependency("stb", .{}).path(".");
 
-    const known_folders_dep = b.dependency("known-folders", .{ .target = target, .optimize = optimize });
+    const known_folders_dep = b.dependency("known_folders", .{ .target = target, .optimize = optimize });
     const known_folders_mod = known_folders_dep.module("known-folders");
 
     const translate_c = b.addTranslateC(.{

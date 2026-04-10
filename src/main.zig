@@ -177,14 +177,14 @@ pub fn runApp() !void {
     _ = c.SDL_SetBooleanProperty(gpu_props, c.SDL_PROP_GPU_DEVICE_CREATE_SHADERS_DXIL_BOOLEAN, true);
     _ = c.SDL_SetBooleanProperty(gpu_props, c.SDL_PROP_GPU_DEVICE_CREATE_SHADERS_DXBC_BOOLEAN, true);
     // set the app name
-    _ = c.SDL_SetStringProperty(gpu_props, c.SDL_PROP_GPU_DEVICE_CREATE_XR_APPLICATION_NAME, "eepyXR");
-    _ = c.SDL_SetNumberProperty(gpu_props, c.SDL_PROP_GPU_DEVICE_CREATE_XR_APPLICATION_VERSION, 0);
+    _ = c.SDL_SetStringProperty(gpu_props, c.SDL_PROP_GPU_DEVICE_CREATE_XR_APPLICATION_NAME_STRING, "eepyXR");
+    _ = c.SDL_SetNumberProperty(gpu_props, c.SDL_PROP_GPU_DEVICE_CREATE_XR_APPLICATION_VERSION_NUMBER, 0);
     // set the engine name
-    _ = c.SDL_SetStringProperty(gpu_props, c.SDL_PROP_GPU_DEVICE_CREATE_XR_ENGINE_NAME, "eepyXR");
-    _ = c.SDL_SetNumberProperty(gpu_props, c.SDL_PROP_GPU_DEVICE_CREATE_XR_ENGINE_VERSION, 0x00000001);
+    _ = c.SDL_SetStringProperty(gpu_props, c.SDL_PROP_GPU_DEVICE_CREATE_XR_ENGINE_NAME_STRING, "eepyXR");
+    _ = c.SDL_SetNumberProperty(gpu_props, c.SDL_PROP_GPU_DEVICE_CREATE_XR_ENGINE_VERSION_NUMBER, 0x00000001);
     // enable our extensions
-    _ = c.SDL_SetPointerProperty(gpu_props, c.SDL_PROP_GPU_DEVICE_CREATE_XR_EXTENSION_NAMES, @ptrCast(loaded_extensions.ptr));
-    _ = c.SDL_SetNumberProperty(gpu_props, c.SDL_PROP_GPU_DEVICE_CREATE_XR_EXTENSION_COUNT, @intCast(loaded_extensions.len));
+    _ = c.SDL_SetPointerProperty(gpu_props, c.SDL_PROP_GPU_DEVICE_CREATE_XR_EXTENSION_NAMES_POINTER, @ptrCast(loaded_extensions.ptr));
+    _ = c.SDL_SetNumberProperty(gpu_props, c.SDL_PROP_GPU_DEVICE_CREATE_XR_EXTENSION_COUNT_NUMBER, @intCast(loaded_extensions.len));
 
     _ = c.SDL_SetBooleanProperty(gpu_props, c.SDL_PROP_GPU_DEVICE_CREATE_DEBUGMODE_BOOLEAN, builtin.mode == .Debug);
     _ = c.SDL_SetBooleanProperty(gpu_props, c.SDL_PROP_GPU_DEVICE_CREATE_PREFERLOWPOWER_BOOLEAN, false);
@@ -192,9 +192,9 @@ pub fn runApp() !void {
     var instance: c.XrInstance = undefined;
     var system_id: c.XrSystemId = undefined;
     // Enable OpenXR for our GPU device
-    _ = c.SDL_SetBooleanProperty(gpu_props, c.SDL_PROP_GPU_DEVICE_CREATE_XR_ENABLE, true);
-    _ = c.SDL_SetPointerProperty(gpu_props, c.SDL_PROP_GPU_DEVICE_CREATE_XR_INSTANCE_OUT, @ptrCast(&instance));
-    _ = c.SDL_SetPointerProperty(gpu_props, c.SDL_PROP_GPU_DEVICE_CREATE_XR_SYSTEM_ID_OUT, @ptrCast(&system_id));
+    _ = c.SDL_SetBooleanProperty(gpu_props, c.SDL_PROP_GPU_DEVICE_CREATE_XR_ENABLE_BOOLEAN, true);
+    _ = c.SDL_SetPointerProperty(gpu_props, c.SDL_PROP_GPU_DEVICE_CREATE_XR_INSTANCE_POINTER, @ptrCast(&instance));
+    _ = c.SDL_SetPointerProperty(gpu_props, c.SDL_PROP_GPU_DEVICE_CREATE_XR_SYSTEM_ID_POINTER, @ptrCast(&system_id));
 
     // Create our GPU device
     const gpu_device: *c.SDL_GPUDevice = c.SDL_CreateGPUDeviceWithProperties(gpu_props) orelse {
@@ -314,7 +314,7 @@ pub fn runApp() !void {
 
         // sleep 20ms waiting for our session to be ready...
         if (state.session_data == null) {
-            std.time.sleep(std.time.ns_per_ms * 20);
+            std.Thread.sleep(std.time.ns_per_ms * 20);
             continue;
         }
 
@@ -388,19 +388,23 @@ fn createSwapchain(gpu_device: *c.SDL_GPUDevice, session: c.XrSession, cmdbuf: *
         .createFlags = c.XR_SWAPCHAIN_CREATE_STATIC_IMAGE_BIT,
     };
 
+    var num_formats: c_int = undefined;
+    const formats = c.SDL_GetGPUXRSwapchainFormats(gpu_device, session, &num_formats);
+
     // TODO: we need to add an API somewhere in SDL XR to ensure we get a transparent swapchain,
     //       right now we're just relying on the runtime giving us a transparent format early :p
-    var texture_format: c.SDL_GPUTextureFormat = undefined;
     var swapchain: c.XrSwapchain = undefined;
     var swapchain_images: [*]*c.SDL_GPUTexture = undefined;
     try xr.handleResult(c.SDL_CreateGPUXRSwapchain(
         gpu_device,
         session,
         &swapchain_create_info,
-        &texture_format,
+        formats[0],
         &swapchain,
         @ptrCast(&swapchain_images), // SAFETY: this API *does* infact work this way, this just isnt expressable in C, so we need to ptrcast
     ));
+
+    c.SDL_free(formats);
 
     var image_index: u32 = undefined;
     try xr.handleResult(c.xrAcquireSwapchainImage(swapchain, &.{ .type = c.XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO }, &image_index));
@@ -424,7 +428,7 @@ fn createSwapchain(gpu_device: *c.SDL_GPUDevice, session: c.XrSession, cmdbuf: *
     return .{
         .xr = swapchain,
         .images = swapchain_images,
-        .format = texture_format,
+        .format = formats[0],
         .extent = .{ .width = @intCast(swapchain_create_info.width), .height = @intCast(swapchain_create_info.height) },
     };
 }

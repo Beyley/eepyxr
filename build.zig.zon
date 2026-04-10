@@ -4,16 +4,16 @@
     .fingerprint = 0xd1dbd7da7b655602,
     .dependencies = .{
         .SDL = .{
-            .url = "git+https://github.com/Beyley/SDL?ref=openxr#d64e41f95ea641a32da18e526d57013966a96b41",
-            .hash = "N-V-__8AAF1kjwP0nRUoy3Iy9y2SqguzbgsOIB-oL10oVITZ",
+            .url = "git+https://github.com/libsdl-org/SDL#57f3d2ea0aada9131c109aaa0dfda41839997ebf",
+            .hash = "N-V-__8AAC7GCAOYyx5ViWPip8IR15Gy3Zi0YCq5IedZYsQv",
         },
         .stb = .{
             .url = "git+https://github.com/nothings/stb#5c205738c191bcb0abc65c4febfa9bd25ff35234",
             .hash = "N-V-__8AAAokTgCCkRqtrvPINtODP3xgOG7h7kb-_7bFR4X3",
         },
-        .@"known-folders" = .{
-            .url = "git+https://github.com/ziglibs/known-folders#aa24df42183ad415d10bc0a33e6238c437fc0f59",
-            .hash = "known_folders-0.0.0-Fy-PJtLDAADGDOwYwMkVydMSTp_aN-nfjCZw6qPQ2ECL",
+        .known_folders = .{
+            .url = "git+https://github.com/ziglibs/known-folders#83d39161eac2ed6f37ad3cb4d9dd518696ce90bb",
+            .hash = "known_folders-0.0.0-Fy-PJv3LAAABBRVoZWVrKZdyLoUfl5VRY5fqRRRdnF5L",
         },
     },
     .paths = .{
